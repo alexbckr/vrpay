@@ -105,6 +105,24 @@ export const createTransactionForUser = async (
    }
 }
 
+export const approveTransactions = async (selectedTransactions, sessionName) => {
+   const body = { selectedTransactions, sessionName }
+   console.log("body", body)
+
+   try {
+      await fetch("/api/approve_transactions", {
+         method: "POST",
+         headers: { "content-Type": "application/json" },
+         body: JSON.stringify(body),
+      }).then((res) => {
+         console.log("res", res)
+         Router.reload()
+      })
+   } catch (error) {
+      console.log("error approving transactions:", error)
+   }
+}
+
 export const updateTransaction = async (transaction_id, amount, sessionName) => {
    const body = { transaction_id, amount, sessionName }
    console.log("body", body)
@@ -259,7 +277,7 @@ export function getRoleFormatting(role, is_rookie) {
 export function isNumeric(str) {
    if (typeof str != "string") return false // we only process strings!  
    return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-          !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+      !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
 }
 
 export function isTransactionValid(amount, type, description) {
@@ -271,18 +289,18 @@ export function isTransactionValid(amount, type, description) {
 }
 
 export function generateGradYears() {
-	var min = new Date().getFullYear();
-	var max = min + 5;
-	var years = [];
+   var min = new Date().getFullYear();
+   var max = min + 5;
+   var years = [];
 
-	for (var i = max; i >= min; i--) {
-		years.push(i);
-	}
+   for (var i = max; i >= min; i--) {
+      years.push(i);
+   }
 
-	var toReturn = [];
-	for (var i in years) {
-		toReturn.push({ id: years[i], name: years[i] });
-	}
+   var toReturn = [];
+   for (var i in years) {
+      toReturn.push({ id: years[i], name: years[i] });
+   }
 
-	return toReturn;
+   return toReturn;
 }

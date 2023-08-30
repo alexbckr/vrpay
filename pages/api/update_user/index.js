@@ -7,6 +7,7 @@ export default async function handle(req, res) {
     const gradYear = req.body.gradYear;
     // const role = req.body.role;
     const email = req.body.email;
+    const is_rookie = req.body.role === "true" ? true : false;
     console.log("body", req.body)
     
     const post = await prisma.user.update({
@@ -15,6 +16,7 @@ export default async function handle(req, res) {
             name: name,
             grad_year: gradYear,
             email: email,
+            is_rookie: is_rookie,
         },
     });
     res.json(post);

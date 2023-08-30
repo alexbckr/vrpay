@@ -42,7 +42,17 @@ export default function UserDetailsContent(props) {
                 </div>
                 <div className={styles.inputGroup}>
                     <b className={styles.label}>Role</b>
-                    <p>{getRoleFormatting(props?.user?.role)}</p>
+                    {/* <p>{getRoleFormatting(props?.user?.role)}</p> */}
+                    {/* Radio button for Rookie/Varsity */}
+                     <Select
+                        placeholder={props?.user?.is_rookie ? "Rookie" : "Varsity"}
+                        width={"100%"}
+                        initialValue={props?.user?.role}
+                        onChange={(e) => setRole(e)}
+                     >
+                        <Select.Option value="true">Rookie</Select.Option>
+                        <Select.Option value="false">Varsity</Select.Option>
+                     </Select>
                 </div>
                 <div className={styles.inputGroup}>
                     <Input

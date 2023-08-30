@@ -7,12 +7,14 @@ import {
    formatMoney,
    getRoleFormatting,
    deleteUser,
+   approveTransactions,
 } from "../utils.js"
 import Router from "next/router.js"
-import { Input, Button, Modal, useModal, Table, Text, Radio } from "@geist-ui/core"
+import { Input, Button, Modal, Checkbox, useModal, Table, Text, Radio } from "@geist-ui/core"
 import TransactionDetailsContent from "../components/TransactionDetailsContent"
 import NewTransactionContent from "../components/NewTransactionContent"
 import UserDetailsContent from "../components/UserDetailsContent"
+import DeleteUserConfirmation from "../components/DeleteUserConfirmation"
 
 export const getServerSideProps = async () => {
    var unverified_users = await prisma.user.findMany({
@@ -37,7 +39,7 @@ export const getServerSideProps = async () => {
    var today = new Date();
    var mm = String(today.getMonth() + 1).padStart(2, '0');
    var yyyy = today.getFullYear();
-   
+
    var year = mm >= '06' ? yyyy : yyyy - 1;
    var yearString = year.toString();
 
@@ -75,7 +77,7 @@ export const getServerSideProps = async () => {
 
    var total_owed = 0
    var length = Object.keys(verified_users).length
-   for (var i = 0; i < length; i++) {  
+   for (var i = 0; i < length; i++) {
       if (verified_users[i].total_due > 0) {
          total_owed += verified_users[i].total_due
       }
@@ -95,7 +97,7 @@ export const getServerSideProps = async () => {
    console.log("pending_transactions:", pending_transactions)
    console.log("total_owed:", total_owed)
 
-   return { props: { unverified_users, verified_users, pending_transactions, total_owed} }
+   return { props: { unverified_users, verified_users, pending_transactions, total_owed } }
 }
 
 export default function Admin(props) {
@@ -108,10 +110,12 @@ export default function Admin(props) {
    const [relevantName, setRelevantName] = useState(null)
    const [viewingDetails, setViewingDetails] = useState(false)
    const [state, setState] = useState('names')
+   const [viewingDelete, setViewingDelete] = useState(false)
    const handler = val => {
       setState(val)
       console.log(val)
-}
+   }
+   var checkedTransactions = []
 
    const width_name = "12%"
    const width_gy = "8%"
@@ -211,7 +215,12 @@ export default function Admin(props) {
                auto
                scale={1 / 2}
                className={styles.verifyButton}
-               onClick={() => deleteUser(rowData.id)}
+               onClick={() => {
+                  setViewingDelete(true)
+                  setVisible(true)
+                  setRelevantUser(rowData)
+                  setViewingUser(true)
+               }}
             >
                Delete
             </Text>
@@ -230,7 +239,7 @@ export default function Admin(props) {
             </Text>
          </div>
       )
-      }
+   }
 
    const cellMoney = (value, rowData, rowIndex) => {
       return (
@@ -287,6 +296,27 @@ export default function Admin(props) {
       )
    }
 
+   const checkbox = (value, rowData, rowIndex) => {
+      return (
+         <Checkbox
+            value={value}
+            name={rowData?.id}
+            onChange={(e) => {
+               if (e.target.checked) {
+                  // console.log('checked')
+                  console.log(rowData?.id)
+                  checkedTransactions.push(rowData?.id)
+               } else {
+                  // console.log('unchecked')
+                  console.log(rowData?.id)
+                  checkedTransactions = checkedTransactions.filter(id => id !== rowData?.id)
+               }
+               console.log(checkedTransactions)
+            }}
+         />
+      )
+   }
+
    const userEmail = (value, rowData, rowIndex) => {
       return (
          <p
@@ -314,21 +344,27 @@ export default function Admin(props) {
             </Button>
             <Modal {...bindings}>
                {viewingUser ? (
+                  viewingDelete ? (
+                     <DeleteUserConfirmation
+                        user={relevantUser}
+                        setVisible={setVisible}
+                     />
+                  ) : (
                   <UserDetailsContent
                      user={relevantUser}
                      setVisible={setVisible}
                   />
-               ) : (
-               viewingDetails ? (
-                  <TransactionDetailsContent
-                     transaction={relevantTransaction}
-                     setVisible={setVisible}
-                     uid={relevantUID}
-                     name={relevantName}
-                  />
-               ) : (
-                  <NewTransactionContent setVisible={setVisible} />
-               ))}
+               )) : (
+                  viewingDetails ? (
+                     <TransactionDetailsContent
+                        transaction={relevantTransaction}
+                        setVisible={setVisible}
+                        uid={relevantUID}
+                        name={relevantName}
+                     />
+                  ) : (
+                     <NewTransactionContent setVisible={setVisible} />
+                  ))}
             </Modal>
             {props.unverified_users?.length > 0 && (
                <div className={styles.unverifiedUsersContainer}>
@@ -375,6 +411,11 @@ export default function Admin(props) {
                   <Table data={props.pending_transactions}>
                      <Table.Column
                         className={styles.tableCell}
+                        render={checkbox}
+                        width="50px"
+                     />
+                     <Table.Column
+                        className={styles.tableCell}
                         prop="name"
                         label="Athlete"
                         render={transactionAthlete}
@@ -404,6 +445,15 @@ export default function Admin(props) {
                         render={transactionOptions}
                      />
                   </Table>
+                  <br/>
+                  <Button 
+                     type='success' 
+                     width='100px' 
+                     onClick={() => {
+                        console.log(checkedTransactions)
+                        approveTransactions(checkedTransactions, session.user.name)
+                     }}
+                  >Approve</Button>
                </div>
             )}
 
@@ -411,7 +461,7 @@ export default function Admin(props) {
             <div className={styles.tableHeader}>
                <div className={styles.sortSection}>
                   <p className={styles.sortTitle}>Sort by</p>
-                  <Radio.Group value={state} onChange={handler} scale={1/2}>
+                  <Radio.Group value={state} onChange={handler} scale={1 / 2}>
                      <Radio value="names">Name</Radio>
                      <Radio value="due">Total Due (descending)</Radio>
                      <Radio value="year">Grad Year</Radio>
@@ -421,9 +471,9 @@ export default function Admin(props) {
                   <p>Total owed to VRA: {formatMoney.format(props.total_owed)}</p>
                </div>
             </div>
-            <Table auto data={state === "due" ? props.verified_users?.sort((a, b) => { return b.total_due - a.total_due }) 
+            <Table auto data={state === "due" ? props.verified_users?.sort((a, b) => { return b.total_due - a.total_due })
                : state === "names" ? props.verified_users?.sort((a, b) => a.name.localeCompare(b.name)) : props.verified_users?.sort((a, b) => { return a.grad_year - b.grad_year })}>
-               <Table.Column prop="name" label="Athlete" render={athleteName} width={width_name}/>
+               <Table.Column prop="name" label="Athlete" render={athleteName} width={width_name} />
                <Table.Column
                   prop="role"
                   label="Role"
@@ -437,9 +487,9 @@ export default function Admin(props) {
                   render={emailText}
                   width={width_gy}
                />
-               <Table.Column 
-                  prop="email" 
-                  label="Email" 
+               <Table.Column
+                  prop="email"
+                  label="Email"
                   render={userEmail}
                />
                <Table.Column
